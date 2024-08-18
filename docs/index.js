@@ -1,6 +1,6 @@
-let data = [  0, 104, 2, 142, 140, 22, 144, 200, 200,  200,  200,  200,  200,  200  ];
+let data = [  31, 133,  113,  111,  141,  144,  104,  100,  140,  200,  200,  200,  200,  200  ];
 let lines = [];
-const scaleFactor = 80;
+const scaleFactor = 130;
 const xScaleFactor = scaleFactor/2;
 const boxHeight = scaleFactor*4;
 const boxWidth = boxHeight/2;
@@ -47,12 +47,13 @@ function setup() {
     createCanvas(windowWidth, windowHeight);
     noLoop();
     decodeData();
-    translate(width / 2, height / 2);
+    translate(width / 2, height / 2); // Draw everything from the center
 }
 
 function draw() {
     background(0);
     translate(width / 2, height / 2);
+    drawRibbon();
     drawOutlineBox();
     renderLines();
 }
@@ -77,4 +78,40 @@ function drawOutlineBox() {
 
 function windowResized() {
     resizeCanvas(windowWidth, windowHeight);
+}
+
+function drawRibbon() {
+    const width = 1200;
+    const height = 600;
+    const numTriangles = 5;
+    const trianglePointSize = 25;
+
+    // Center rect
+    fill(rgb(90, 72, 141));
+    noStroke();
+    rectMode(CENTER);
+    rect(0, 0, width, height);
+
+    // Render triangles
+    const triangleSpacing = height/numTriangles;
+    const triXStart = -width/2;
+    const triYStart = -height/2;
+    for (var i = 0; i < numTriangles; i++) {
+        const thisTriStartY = triYStart + (triangleSpacing * i);
+        const thisTriEndY = triYStart + (triangleSpacing * (i+1));
+
+        // Left
+        triangle(
+            ...[triXStart, thisTriStartY],
+            ...[triXStart, thisTriEndY],
+            ...[triXStart-trianglePointSize, (thisTriStartY+thisTriEndY)/2], // point is in the center
+        )
+
+        // Right
+        triangle(
+            ...[-triXStart, thisTriStartY],
+            ...[-triXStart, thisTriEndY],
+            ...[-(triXStart-trianglePointSize), (thisTriStartY+thisTriEndY)/2], // point is in the center
+        )
+    }
 }
