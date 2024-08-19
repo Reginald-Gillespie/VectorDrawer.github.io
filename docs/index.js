@@ -1,17 +1,47 @@
-let data = [  31, 133,  113,  111,  141,  144,  104,  100,  140,  200,  200,  200,  200,  200  ];
+let data = [  0,  104,    2,  142,   44,  140,  200,  200,  200,  200,  200,  200,  200,  200  ]; // placeholder
 let lines = [];
+let holes = [];
 const scaleFactor = 130;
-const xScaleFactor = scaleFactor/2;
+const xFractOfY = 1.5;
+const xScaleFactor = scaleFactor/xFractOfY;
 const boxHeight = scaleFactor*4;
-const boxWidth = boxHeight/2;
+const boxWidth = boxHeight/xFractOfY;
+const boxPixelExpandBuffer = 11;
 const offsetX = 0;
 const offsetY = 0;
+var lastHoveredHole = null;
 
-// TODO: compress x in slightly
+// TODO: 
+// Detect if highlighted area is part of an already established line, delete that and split the line into two parts if so
+// Minimize lines when exporting shape
+// Better way to delete lines
+
+function arraysEqual(arr1, arr2) {
+    if (arr1.length !== arr2.length) return false;
+    for (let i = 0; i < arr1.length; i++) {
+        if (Array.isArray(arr1[i]) && Array.isArray(arr2[i])) {
+            if (!arraysEqual(arr1[i], arr2[i])) return false;
+        } else if (arr1[i] !== arr2[i]) {
+            return false;
+        }
+    }
+    return true;
+}
 
 function decodeData() {
+    console.log("Parsing")
+    var parsedInput = null;
+    try {
+        const input = "[" + select('#inputField')?.value().match(/[\d\,]/g).join("") + "]"; // Filter parse it to handle anomalies  
+        parsed = JSON.parse(input);
+        select('#inputField').value(JSON.stringify(parsed, null, 1).replaceAll("[", "{").replaceAll("]", "}"));
+    } catch {}
+
+    data = parsed || data;
+
     let currentPoint = { x: 0, y: 0 };
 
+    lines = [];
     for (let i = 0; i < data.length; i++) {
         let value = data[i];
         let draw = Math.floor(value / 100) == 1;
@@ -38,30 +68,49 @@ function decodeData() {
     }
 }
 
+function encodeAndWrite() {
+    // select('#inputField').value(JSON.stringify(parsed, null, 1).replaceAll("[", "{").replaceAll("]", "}"));
+    // TODO: optimize the data encoding
+    // { 0, 104, 2, 142, 44, 140, 200, 200, 200, 200, 200, 200, 200, 200}
+
+    
+
+}
+
+function calculateHoles() {
+    const lockNum = 5;
+    const startX = -boxWidth / 2;
+    const xPointDist = boxWidth / (lockNum-1);
+    const startY = -boxHeight / 2;
+    const yPointDist = boxHeight / (lockNum-1);
+    for (var x = 0; x < lockNum; x++) {
+        for (var y = 0; y < lockNum; y++) {
+            const pointX = startX + (xPointDist*x);
+            const pointY = startY + (yPointDist*y);
+            holes.push({x:pointX, y:pointY, active:false})
+        }
+    }
+}
+
 function rgb(...input) {
     // Just a quick function so my color picker extension picks up on my color input
     return color(...input);
 }
 
-function setup() {
-    createCanvas(windowWidth, windowHeight);
-    noLoop();
-    decodeData();
-    translate(width / 2, height / 2); // Draw everything from the center
-}
-
-function draw() {
-    background(0);
-    translate(width / 2, height / 2);
-    drawRibbon();
-    drawOutlineBox();
-    renderLines();
+function renderLockHoles() {
+    noFill();
+    stroke(0);
+    strokeWeight(4);
+    // There are 5 slots up and down
+    for (let hole of holes) {
+        point(hole.x, hole.y);
+    }
 }
 
 function renderLines() {
     noFill();
     stroke( rgb(152, 162, 168));
-    strokeWeight(10);
+    strokeWeight(20);
 
     for (let lineCoords of lines) {
         line(...lineCoords.flat(1));
@@ -73,11 +122,7 @@ function drawOutlineBox() {
     stroke(0);
     strokeWeight(1);
     rectMode(CENTER);
-    rect(0, 0, boxWidth, boxHeight);
-}
-
-function windowResized() {
-    resizeCanvas(windowWidth, windowHeight);
+    rect(0, 0, boxWidth+boxPixelExpandBuffer*2, boxHeight+boxPixelExpandBuffer*2);
 }
 
 function drawRibbon() {
@@ -115,3 +160,177 @@ function drawRibbon() {
         )
     }
 }
+
+function getActiveHole() {
+    for (var hole of holes) {
+        if (hole.active) {
+            return hole;
+        }
+    }
+    return null;
+}
+
+function getHoveredHole() {
+    // TODO: instead of get for active and hovered, getting both at the same time would be more efficient 
+    for (var hole of holes) {
+        if (hole.hovered) {
+            return hole;
+        }
+    }
+    return null;
+}
+
+function circleFocusedHoles() {
+    // An alternative method would be to save the inside hole, render the circle and blit that image of the hole before over the ellipse 
+    function circleHole(x, y) {
+        let outerRadius = 15;
+        stroke(50);
+        strokeWeight(3);
+        beginShape();
+        for (let angle = 0; angle < 360; angle += 1) {
+            let outerX = x + cos(radians(angle)) * outerRadius;
+            let outerY = y + sin(radians(angle)) * outerRadius;
+            vertex(outerX, outerY);
+        }
+        endShape(CLOSE);
+    }
+
+    const activeHole = getActiveHole();
+    if (activeHole) circleHole(activeHole.x, activeHole.y);
+
+    const hoveredHole = getHoveredHole();
+    if (hoveredHole) circleHole(hoveredHole.x, hoveredHole.y);
+}
+
+function getInRangePoint() {
+    const pointRadius = 15;
+    for (let p of holes) {
+        const absolutePointPos = [width/2 + p.x, height/2 + p.y]
+        if (dist(mouseX, mouseY, ...absolutePointPos) <= pointRadius) {
+            return p;
+        }
+    }
+}
+
+function drawLineToCursor() {
+    const activeHole = getActiveHole();
+    if (activeHole) {
+        noFill();
+        stroke( rgb(152, 162, 168));
+        strokeWeight(20);
+
+        const startPoint = [activeHole.x, activeHole.y];
+        const endPoint = [mouseX - width/2, mouseY - height/2];
+
+        line(...startPoint, ...endPoint)
+    }
+}
+
+// Non P5.js events
+
+function handleInputChange() {
+    decodeData()
+}
+
+
+// P5.js event functions
+
+function windowResized() {
+    resizeCanvas(windowWidth, windowHeight);
+    translated = false;
+    draw();
+}
+
+function setup() {
+    createCanvas(windowWidth, windowHeight);
+    // createCanvas(windowWidth, windowHeight, p5.WEBGL);
+    let input = select('#inputField');
+    input.input(handleInputChange);
+
+    noLoop();
+    decodeData();
+    calculateHoles();
+}
+
+var translated = false;
+function draw() {
+    if (!translated) { 
+        // No idea why but this doesn't work when called from setup()
+        translate(width/2, height/2);
+        translated = true;
+    }
+    background(0);
+    drawRibbon();
+    drawOutlineBox();
+    renderLockHoles();
+    renderLines();
+    drawLineToCursor();
+    circleFocusedHoles();
+}
+
+function mousePressed() {
+    // Make it easy to break return out of once we get a hit
+    (function returnableChecker(){
+
+        // If a point was clicked, 
+        const hoveredHole = getInRangePoint();
+        if (hoveredHole) {
+            const formerActiveHole = getActiveHole();
+            hoveredHole.active = true;
+            if (formerActiveHole) formerActiveHole.active = false;
+            return;
+        }
+        
+        // Check for lines
+        // const lineThreshold = 5;
+        // for (let l of lines) {
+        //     if (distToSegment(mouseX, mouseY, l.start.x, l.start.y, l.end.x, l.end.y) <= lineThreshold) {
+        //         console.log("Clicked near line:", l);
+        //         return;
+        //     }
+        // }
+    })();
+
+    // Draw everything again since something changed
+    draw();
+}
+
+function mouseReleased() {
+    const startHole = getActiveHole();
+    const endHole = getInRangePoint();
+    if (endHole && startHole) {
+        const startPoint = [startHole.x, startHole.y]
+        const endPoint = [endHole.x, endHole.y]
+        const linePoints = [startPoint, endPoint]
+
+        // Remove this line if it already exists
+        let removed = false;
+        for (var lineIndex in lines) {
+            const l = lines[lineIndex];
+            if (arraysEqual(l.sort(), linePoints.sort())) {
+                lines.splice(lineIndex, 1);
+                removed = true;
+                break;
+            }
+        }
+
+        if (!removed) {
+            // The array was not removed, so add it
+            lines.push(linePoints);
+        }
+    }
+    if (startHole) startHole.active = false;
+    draw()
+}
+
+function mouseMoved() {
+    // Highlight hovered hole
+    const hoveredHole = getInRangePoint();
+    if (lastHoveredHole) delete lastHoveredHole.hovered;
+    if (hoveredHole) {
+        hoveredHole.hovered = true;
+        lastHoveredHole = hoveredHole;
+    }
+    draw();
+}
+mouseDragged = mouseMoved;

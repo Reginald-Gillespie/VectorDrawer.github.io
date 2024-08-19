@@ -1,8 +1,47 @@
-html, body {
+/* html, body {
   margin: 0;
   padding: 0;
 }
 
 canvas {
   display: block;
+} */
+
+body {
+  margin: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background-color: #333; /* Dark background */
+  color: #fff; /* Light text color */
+  padding: 0;
+}
+#inputContainer {
+  position: absolute;
+  top: 2%; /* Adjust to move the input field closer to the top */
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  z-index: 1; /* Ensure the input is above the canvas */
+}
+input {
+  width: 75%; /* 75% of the page width */
+  padding: 10px;
+  font-size: 16px;
+  border: 2px solid #555;
+  border-radius: 5px;
+  background-color: #222; /* Dark input background */
+  color: #fff; /* Light input text color */
+  box-sizing: border-box; /* Ensure padding and border are included in width */
+  text-align: center;
+}
+canvas {
+  position: absolute; /* Ensure canvas does not interfere with input */
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0; /* Place canvas below the input */
 }
