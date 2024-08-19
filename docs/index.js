@@ -1,4 +1,5 @@
 let data = [  0,  104,    2,  142,   44,  140,  200,  200,  200,  200,  200,  200,  200,  200  ]; // placeholder
+let lastExport = "";
 let lines = [];
 let holes = [];
 const scaleFactor = 130;
@@ -68,12 +69,39 @@ function decodeData() {
     }
 }
 
-function encodeAndWrite() {
-    // select('#inputField').value(JSON.stringify(parsed, null, 1).replaceAll("[", "{").replaceAll("]", "}"));
-    // TODO: optimize the data encoding
-    // { 0, 104, 2, 142, 44, 140, 200, 200, 200, 200, 200, 200, 200, 200}
+function encodeAndWrite() {    
+    const bufferSlots = 14; // We need to fill up the extra space to make 14 cells
 
-    
+    var exportedData = []
+    var lastEnd = [-1,-1];
+    for (var l of lines) {
+        // const [startPoint, endPoint] = l;
+        const [endPoint, startPoint] = l; // Reversing this makes it export the same way as the hack pack one imports
+
+        var [lsX, lsY] = getLabelXYByGraphicalXY(...startPoint);
+        var [leX, leY] = getLabelXYByGraphicalXY(...endPoint);
+
+        // If we're not already at the start point, we need to add a move to it first
+        if (!arraysEqual(startPoint, endPoint)) {
+            exportedData.push(  (+lsX)*10  +  (+lsY)  )
+        }
+
+        // Now push a move to the end point
+        exportedData.push(  100  +  (+leX)*10  +  (+leY)  )
+
+    }
+
+    // Now push 200's into the leftover spaces
+    for (var needToFill = bufferSlots - exportedData.length; needToFill-- > 0;) exportedData.push(200)
+
+    // Convert to C format
+    const CFormatData = JSON.stringify(exportedData, null, 1).replaceAll("[", "{").replaceAll("]", "}")
+
+    // Setting the value is probably resource intensive so we'll only do it if changed
+    if (CFormatData !== lastExport) {
+        select('#inputField').value(CFormatData);
+        lastExport = CFormatData;
+    }
 
 }
 
@@ -87,8 +115,17 @@ function calculateHoles() {
         for (var y = 0; y < lockNum; y++) {
             const pointX = startX + (xPointDist*x);
             const pointY = startY + (yPointDist*y);
-            holes.push({x:pointX, y:pointY, active:false})
+            holes.push({x:pointX, y:pointY, active:false, labelMakerX:x, labelMakerY:y })
         }
+    }
+}
+
+function getLabelXYByGraphicalXY(x, y) {
+    for (var hole of holes) {
+        if (
+            hole.x == x &&
+            hole.y == y
+        ) return [hole.labelMakerX, hole.labelMakerY]
     }
 }
 
@@ -266,6 +303,7 @@ function draw() {
     renderLines();
     drawLineToCursor();
     circleFocusedHoles();
+    encodeAndWrite();
 }
 
 function mousePressed() {
