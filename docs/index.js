@@ -11,6 +11,7 @@ const boxPixelExpandBuffer = 11;
 const offsetX = 0;
 const offsetY = 0;
 var lastHoveredHole = null;
+const bufferSlots = 14; // We need to fill up the extra space to make 14 cells - it it has to it will go above this but it can't go below it
 
 // TODO: 
 // Detect if highlighted area is part of an already established line, delete that and split the line into two parts if so
@@ -29,7 +30,7 @@ function arraysEqual(arr1, arr2) {
     return true;
 }
 
-function decodeData() {
+function decodeData(ignoreInput=false) {
     console.log("Parsing")
     var parsedInput = null;
     try {
@@ -38,7 +39,7 @@ function decodeData() {
         select('#inputField').value(JSON.stringify(parsed, null, 1).replaceAll("[", "{").replaceAll("]", "}"));
     } catch {}
 
-    data = parsed || data;
+    data = ignoreInput ? data : parsed || data;
 
     let currentPoint = { x: 0, y: 0 };
 
@@ -69,9 +70,7 @@ function decodeData() {
     }
 }
 
-function encodeAndWrite() {    
-    const bufferSlots = 14; // We need to fill up the extra space to make 14 cells
-
+function encodeAndWrite() {
     var exportedData = []
     var lastEnd = [-1,-1];
     for (var l of lines) {
@@ -269,6 +268,13 @@ function handleInputChange() {
     decodeData()
 }
 
+function deleteButtonPressed() {
+    console.log("Delete button")
+    data = (new Array(bufferSlots)).fill(200);
+    decodeData(true);
+    draw();
+}
+
 
 // P5.js event functions
 
@@ -281,8 +287,9 @@ function windowResized() {
 function setup() {
     createCanvas(windowWidth, windowHeight);
     // createCanvas(windowWidth, windowHeight, p5.WEBGL);
-    let input = select('#inputField');
-    input.input(handleInputChange);
+
+    select('#inputField').input(handleInputChange);
+    select('#deleteButton').mousePressed(deleteButtonPressed);
 
     noLoop();
     decodeData();
