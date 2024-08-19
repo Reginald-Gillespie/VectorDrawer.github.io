@@ -1,6 +1,7 @@
 let data = [  0,  104,    2,  142,   44,  140,  200,  200,  200,  200,  200,  200,  200,  200  ]; // placeholder
-let lastExport = "";
 let lines = [];
+let lastData = JSON.stringify(data);
+let lastLines = JSON.stringify(lines);
 let holes = [];
 const scaleFactor = 130;
 const xFractOfY = 1.5;
@@ -15,8 +16,66 @@ const bufferSlots = 14; // We need to fill up the extra space to make 14 cells -
 
 // TODO: 
 // Detect if highlighted area is part of an already established line, delete that and split the line into two parts if so
-// Minimize lines when exporting shape
 // Better way to delete lines
+
+function sortLinesOptimally(lines) {
+    // Brute-force solution to find the most ideal solution to draw these lines with the least amount of pen-lifts
+    const permutations = getPermutations(lines.map((line, index) => [index, line]));
+    let minDistance = Infinity;
+    let optimalSequence = [];
+
+    for (const perm of permutations) {
+        const sequence = [];
+        let totalDistance = 0;
+        let currentPoint = null;
+
+        for (let i = 0; i < perm.length; i++) {
+            let [index, line] = perm[i];
+            let [start, end] = line;
+            if (currentPoint) {
+                const distStart = distance(currentPoint, start);
+                const distEnd = distance(currentPoint, end);
+
+                if (distEnd < distStart) {
+                    [start, end] = [end, start];
+                    totalDistance += distEnd;
+                } else {
+                    totalDistance += distStart;
+                }
+            }
+            else {
+                totalDistance += 0;
+            }
+            sequence.push([[...start], [...end]]);
+            currentPoint = end;
+        }
+
+        if (totalDistance < minDistance) {
+            minDistance = totalDistance;
+            optimalSequence = sequence;
+        }
+    }
+
+    return optimalSequence;
+}
+
+function getPermutations(arr) {
+    if (arr.length === 0) return [[]];
+    const result = [];
+    for (let i = 0; i < arr.length; i++) {
+        const current = arr[i];
+        const remaining = arr.slice(0, i).concat(arr.slice(i + 1));
+        const perms = getPermutations(remaining);
+        for (const perm of perms) {
+            result.push([current, ...perm]);
+        }
+    }
+    return result;
+}
+
+function distance(a, b) {
+    return Math.hypot(a[0] - b[0], a[1] - b[1]);
+}
 
 function arraysEqual(arr1, arr2) {
     if (arr1.length !== arr2.length) return false;
@@ -70,10 +129,28 @@ function decodeData(ignoreInput=false) {
     }
 }
 
+function hasDataOrLinesChanged() {
+    const dataStringified = JSON.stringify(data);
+    const linesStringified = JSON.stringify(lines);
+    if (lastData !== dataStringified || lastLines !== linesStringified) {
+        lastLines = linesStringified;
+        lastData = dataStringified;
+        return true;
+    }
+    return false;
+}
+
 function encodeAndWrite() {
     var exportedData = []
     var lastEnd = [-1,-1];
-    for (var l of lines) {
+
+    // Make sure either data or lines changed
+    if (!hasDataOrLinesChanged()) return;
+
+    // Sort the lines so that the drawing can draw fastest and with the least amount of lifts
+    const efficientLines = sortLinesOptimally(lines);
+
+    for (var l of efficientLines) {
         // const [startPoint, endPoint] = l;
         const [endPoint, startPoint] = l; // Reversing this makes it export the same way as the hack pack one imports
 
@@ -81,13 +158,15 @@ function encodeAndWrite() {
         var [leX, leY] = getLabelXYByGraphicalXY(...endPoint);
 
         // If we're not already at the start point, we need to add a move to it first
-        if (!arraysEqual(startPoint, endPoint)) {
+        if (!arraysEqual(startPoint, lastEnd)) {
             exportedData.push(  (+lsX)*10  +  (+lsY)  )
         }
 
         // Now push a move to the end point
         exportedData.push(  100  +  (+leX)*10  +  (+leY)  )
 
+        // Record end point in case we can link the lines
+        lastEnd = endPoint;
     }
 
     // Now push 200's into the leftover spaces
@@ -96,11 +175,9 @@ function encodeAndWrite() {
     // Convert to C format
     const CFormatData = JSON.stringify(exportedData, null, 1).replaceAll("[", "{").replaceAll("]", "}")
 
-    // Setting the value is probably resource intensive so we'll only do it if changed
-    if (CFormatData !== lastExport) {
-        select('#inputField').value(CFormatData);
-        lastExport = CFormatData;
-    }
+    // Export data
+    select('#inputField').value(CFormatData);
+    lastExport = CFormatData;
 
 }
 
@@ -317,7 +394,7 @@ function mousePressed() {
     // Make it easy to break return out of once we get a hit
     (function returnableChecker(){
 
-        // If a point was clicked, 
+        // If a point was clicked,
         const hoveredHole = getInRangePoint();
         if (hoveredHole) {
             const formerActiveHole = getActiveHole();
