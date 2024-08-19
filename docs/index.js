@@ -18,63 +18,95 @@ const bufferSlots = 14; // We need to fill up the extra space to make 14 cells -
 // Detect if highlighted area is part of an already established line, delete that and split the line into two parts if so
 // Better way to delete lines
 
-function sortLinesOptimally(lines) {
-    // Brute-force solution to find the most ideal solution to draw these lines with the least amount of pen-lifts
-    const permutations = getPermutations(lines.map((line, index) => [index, line]));
-    let minDistance = Infinity;
-    let optimalSequence = [];
+function distance(point1, point2) {
+    const [x1, y1] = point1;
+    const [x2, y2] = point2;
+    return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+}
 
-    for (const perm of permutations) {
-        const sequence = [];
-        let totalDistance = 0;
-        let currentPoint = null;
+function sortLines(lines) {
+    if (lines.length < 1) return lines;
+    // Thank you ChatGPT... it only took like 10 minutes of trying and retrying to get it to give me this which *might* work.
 
-        for (let i = 0; i < perm.length; i++) {
-            let [index, line] = perm[i];
-            let [start, end] = line;
-            if (currentPoint) {
-                const distStart = distance(currentPoint, start);
-                const distEnd = distance(currentPoint, end);
+    const sortedLines = [];
+    
+    // Start with the first line and consider reversing it
+    let currentLine = lines[0];
+    let remainingLines = lines.slice(1);
 
-                if (distEnd < distStart) {
-                    [start, end] = [end, start];
-                    totalDistance += distEnd;
-                } else {
-                    totalDistance += distStart;
-                }
-            }
-            else {
-                totalDistance += 0;
-            }
-            sequence.push([[...start], [...end]]);
-            currentPoint = end;
+    // Select the best orientation for the first line
+    let closestLineIndex = -1;
+    let closestDistance = Infinity;
+    let reverse = false;
+
+    for (let i = 0; i < remainingLines.length; i++) {
+        const line = remainingLines[i];
+        const distEndToStart = distance(currentLine[1], line[0]);
+        const distEndToEnd = distance(currentLine[1], line[1]);
+        const distStartToStart = distance(currentLine[0], line[0]);
+        const distStartToEnd = distance(currentLine[0], line[1]);
+
+        if (distEndToStart < closestDistance) {
+            closestDistance = distEndToStart;
+            closestLineIndex = i;
+            reverse = false;
         }
-
-        if (totalDistance < minDistance) {
-            minDistance = totalDistance;
-            optimalSequence = sequence;
+        if (distEndToEnd < closestDistance) {
+            closestDistance = distEndToEnd;
+            closestLineIndex = i;
+            reverse = true;
+        }
+        if (distStartToStart < closestDistance) {
+            closestDistance = distStartToStart;
+            closestLineIndex = i;
+            reverse = false;
+            currentLine = [currentLine[1], currentLine[0]]; // Reverse the initial line
+        }
+        if (distStartToEnd < closestDistance) {
+            closestDistance = distStartToEnd;
+            closestLineIndex = i;
+            reverse = true;
+            currentLine = [currentLine[1], currentLine[0]]; // Reverse the initial line
         }
     }
 
-    return optimalSequence;
-}
+    sortedLines.push(currentLine);
+    let currentPoint = currentLine[1];
 
-function getPermutations(arr) {
-    if (arr.length === 0) return [[]];
-    const result = [];
-    for (let i = 0; i < arr.length; i++) {
-        const current = arr[i];
-        const remaining = arr.slice(0, i).concat(arr.slice(i + 1));
-        const perms = getPermutations(remaining);
-        for (const perm of perms) {
-            result.push([current, ...perm]);
+    // Sort the remaining lines using the greedy algorithm
+    while (remainingLines.length > 0) {
+        let closestLineIndex = -1;
+        let closestDistance = Infinity;
+        let reverse = false;
+
+        for (let i = 0; i < remainingLines.length; i++) {
+            const line = remainingLines[i];
+            const distStartToStart = distance(currentPoint, line[0]);
+            const distStartToEnd = distance(currentPoint, line[1]);
+
+            if (distStartToStart < closestDistance) {
+                closestDistance = distStartToStart;
+                closestLineIndex = i;
+                reverse = false;
+            }
+            if (distStartToEnd < closestDistance) {
+                closestDistance = distStartToEnd;
+                closestLineIndex = i;
+                reverse = true;
+            }
+        }
+
+        const closestLine = remainingLines.splice(closestLineIndex, 1)[0];
+        if (reverse) {
+            sortedLines.push([closestLine[1], closestLine[0]]);
+            currentPoint = closestLine[0];
+        } else {
+            sortedLines.push(closestLine);
+            currentPoint = closestLine[1];
         }
     }
-    return result;
-}
 
-function distance(a, b) {
-    return Math.hypot(a[0] - b[0], a[1] - b[1]);
+    return sortedLines;
 }
 
 function arraysEqual(arr1, arr2) {
@@ -140,15 +172,15 @@ function hasDataOrLinesChanged() {
     return false;
 }
 
-function encodeAndWrite() {
+function encodeAndWrite(ignoreChanged=false) {
     var exportedData = []
     var lastEnd = [-1,-1];
 
     // Make sure either data or lines changed
-    if (!hasDataOrLinesChanged()) return;
+    if (!ignoreChanged && !hasDataOrLinesChanged()) return;
 
     // Sort the lines so that the drawing can draw fastest and with the least amount of lifts
-    const efficientLines = sortLinesOptimally(lines);
+    const efficientLines = sortLines(lines);
 
     for (var l of efficientLines) {
         // const [startPoint, endPoint] = l;
