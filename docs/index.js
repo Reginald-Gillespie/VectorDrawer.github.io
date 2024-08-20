@@ -14,6 +14,8 @@ const offsetY = 0;
 var lastHoveredHole = null;
 const bufferSlots = 14; // We need to fill up the extra space to make 14 cells - it it has to it will go above this but it can't go below it
 
+const fontResolution = 5;
+
 // TODO: 
 // Detect if highlighted area is part of an already established line, delete that and split the line into two parts if so
 // Better way to delete lines
@@ -214,7 +216,7 @@ function encodeAndWrite(ignoreChanged=false) {
 }
 
 function calculateHoles() {
-    const lockNum = 5;
+    const lockNum = fontResolution;
     const startX = -boxWidth / 2;
     const xPointDist = boxWidth / (lockNum-1);
     const startY = -boxHeight / 2;
