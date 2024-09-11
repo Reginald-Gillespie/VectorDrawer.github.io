@@ -149,11 +149,13 @@ function decodeData(ignoreInput=false) {
         
         if (draw) {
             // TODO read y coords flipped and render normally
+            // const startPoint = [currentPoint.x * xScaleFactor - boxWidth / 2, -currentPoint.y * scaleFactor + boxHeight / 2];
             const startPoint = [currentPoint.x * xScaleFactor - boxWidth / 2, -currentPoint.y * scaleFactor + boxHeight / 2];
             currentPoint.x = x;
             currentPoint.y = y;
             const endPoint = [currentPoint.x * xScaleFactor - boxWidth / 2, -currentPoint.y * scaleFactor + boxHeight / 2];
 
+            // ig it's flipped wrong now or smth
             lines.push([startPoint, endPoint]);
         } else {
             // Update start position
@@ -225,7 +227,8 @@ function calculateHoles() {
         for (var y = 0; y < lockNum; y++) {
             const pointX = startX + (xPointDist*x);
             const pointY = startY + (yPointDist*y);
-            holes.push({x:pointX, y:pointY, active:false, labelMakerX:x, labelMakerY:y })
+            // NOTE: ig we need to flip the label maker Y since their coord system flipped
+            holes.push({x:pointX, y:pointY, active:false, labelMakerX:x, labelMakerY:((fontResolution-1) - y) })
         }
     }
 }
@@ -235,7 +238,7 @@ function getLabelXYByGraphicalXY(x, y) {
         if (
             hole.x == x &&
             hole.y == y
-        ) return [hole.labelMakerX, hole.labelMakerY]
+        ) return [hole.labelMakerX, hole.labelMakerY] // NOTE: we're flipping y here
     }
 }
 
