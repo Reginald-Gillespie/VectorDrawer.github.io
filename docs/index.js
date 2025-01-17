@@ -188,7 +188,8 @@ function encodeAndWrite(ignoreChanged=false) {
 
     for (var l of efficientLines) {
         // const [startPoint, endPoint] = l;
-        const [endPoint, startPoint] = l; // Reversing this makes it export the same way as the hack pack one imports
+        // const [endPoint, startPoint] = l; // Reversing this makes it export the same way as the hack pack one imports
+        const [startPoint, endPoint] = l; // Reversing this makes it export the same way as the hack pack one imports
 
         var [lsX, lsY] = getLabelXYByGraphicalXY(...startPoint);
         var [leX, leY] = getLabelXYByGraphicalXY(...endPoint);
@@ -422,9 +423,20 @@ function draw() {
     drawOutlineBox();
     renderLockHoles();
     renderLines();
+    drawLineLabels();
     drawLineToCursor();
     circleFocusedHoles();
     encodeAndWrite();
+}
+
+function drawLineLabels() {
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const midPoint = [(line[0][0] + line[1][0]) / 2, (line[0][1] + line[1][1]) / 2];
+        textSize(12);
+        fill(0);
+        text(i + 1, midPoint[0], midPoint[1]);
+    }
 }
 
 function mousePressed() {
