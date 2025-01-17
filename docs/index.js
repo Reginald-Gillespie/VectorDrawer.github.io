@@ -423,7 +423,7 @@ function draw() {
     drawOutlineBox();
     renderLockHoles();
     renderLines();
-    drawLineLabels();
+    // drawLineLabels();
     drawLineToCursor();
     circleFocusedHoles();
     encodeAndWrite();
